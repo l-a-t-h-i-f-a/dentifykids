@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class GeminiService {
-  static const _apiKey = 'YOUR_API_KEY_HERE';
+  static const String _apiKey = '';
 
   GeminiService();
 

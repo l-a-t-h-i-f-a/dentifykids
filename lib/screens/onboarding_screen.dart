@@ -48,8 +48,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset('assets/images/logo.jpeg', height: 100),
-              const SizedBox(height: 24),
+              Image.asset('assets/images/logo.jpeg', height: 110),
+              const SizedBox(height: 16),
+              const Row(
+                children: [
+                  Text('🦷', style: TextStyle(fontSize: 28)),
+                  SizedBox(width: 8),
+                  Text('🪥', style: TextStyle(fontSize: 28)),
+                  SizedBox(width: 8),
+                  Text('✨', style: TextStyle(fontSize: 24)),
+                  SizedBox(width: 8),
+                  Text('💧', style: TextStyle(fontSize: 24)),
+                  SizedBox(width: 8),
+                  Text('😁', style: TextStyle(fontSize: 28)),
+                ],
+              ),
+              const SizedBox(height: 16),
               Text(
                 'DentifyKids',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -59,7 +73,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Sikat gigi lebih seru!',
+                '🪥 Sikat gigi lebih seru & menyenangkan!',
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge

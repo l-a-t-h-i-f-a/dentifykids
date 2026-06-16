@@ -20,22 +20,27 @@ class DentifyKidsApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E88E5),
+          seedColor: const Color(0xFF6C63FF),
           brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: const Color(0xFFEAF6FF),
+        scaffoldBackgroundColor: const Color(0xFFF3F0FF),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFEAF6FF),
-          foregroundColor: Color(0xFF0D47A1),
+          backgroundColor: Color(0xFFF3F0FF),
+          foregroundColor: Color(0xFF3A3185),
           elevation: 0,
         ),
         cardTheme: CardThemeData(
-          color: Colors.white.withValues(alpha: 0.92),
-          surfaceTintColor: const Color(0xFFBBDEFB),
+          color: Colors.white.withValues(alpha: 0.95),
+          surfaceTintColor: Colors.transparent,
         ),
         bottomAppBarTheme: const BottomAppBarThemeData(
-          color: Color(0xFFEAF6FF),
-          surfaceTintColor: Color(0xFFBBDEFB),
+          color: Color(0xFFF3F0FF),
+          surfaceTintColor: Colors.transparent,
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF6C63FF),
+          ),
         ),
         useMaterial3: true,
       ),

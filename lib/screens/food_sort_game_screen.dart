@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 
 class _FoodItem {
   final String emoji;
@@ -43,6 +45,8 @@ class _FoodSortGameScreenState extends State<FoodSortGameScreen>
   bool _done = false;
   late AnimationController _animCtrl;
   Color _flashColor = Colors.transparent;
+  VideoPlayerController? _ctrlBenar;
+  VideoPlayerController? _ctrlSalah;
 
   @override
   void initState() {
@@ -54,17 +58,45 @@ class _FoodSortGameScreenState extends State<FoodSortGameScreen>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    _loadSounds();
   }
 
   @override
   void dispose() {
     _animCtrl.dispose();
+    _ctrlBenar?.dispose();
+    _ctrlSalah?.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSounds() async {
+    _ctrlBenar = VideoPlayerController.asset('assets/audios/benar.mp3');
+    _ctrlSalah = VideoPlayerController.asset('assets/audios/salah.mp3');
+    await Future.wait([
+      _ctrlBenar!.initialize(),
+      _ctrlSalah!.initialize(),
+    ]);
+  }
+
+  Future<void> _playSound(VideoPlayerController? ctrl, {int? stopAfterMs}) async {
+    if (ctrl == null || !ctrl.value.isInitialized) return;
+    await ctrl.seekTo(Duration.zero);
+    await ctrl.play();
+    if (stopAfterMs != null) {
+      Future.delayed(Duration(milliseconds: stopAfterMs), () => ctrl.pause());
+    }
   }
 
   Future<void> _answer(bool isGood) async {
     if (_animCtrl.isAnimating) return;
     final correct = isGood == _deck[_index].isGood;
+    if (correct) {
+      HapticFeedback.mediumImpact();
+      _playSound(_ctrlBenar);
+    } else {
+      HapticFeedback.heavyImpact();
+      _playSound(_ctrlSalah, stopAfterMs: 2000);
+    }
     setState(() {
       _lastCorrect = correct;
       _flashColor = correct ? Colors.green.shade100 : Colors.red.shade100;
@@ -72,7 +104,7 @@ class _FoodSortGameScreenState extends State<FoodSortGameScreen>
     });
 
     await _animCtrl.forward();
-    await Future.delayed(const Duration(milliseconds: 80));
+    await Future.delayed(const Duration(milliseconds: 1500));
 
     if (_index + 1 >= _deck.length) {
       setState(() => _done = true);

@@ -1,8 +1,8 @@
 /// Returns 'pagi', 'malam', or '' (bukan waktu sikat)
 String determineSesi(DateTime time) {
   final h = time.hour;
-  if (h >= 5 && h <= 15) return 'pagi';
-  if (h >= 18 && h <= 23) return 'malam';
+  if (h >= 0 && h <= 11) return 'pagi';
+  if (h >= 12 && h <= 23) return 'malam';
   return '';
 }
 

@@ -137,19 +137,17 @@ class _ScanScreenState extends State<ScanScreen>
             ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/bg.png'),
-            fit: BoxFit.cover,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/images/bg.png', fit: BoxFit.cover),
+          SafeArea(
+            bottom: false,
+            child: _state == _ScanState.result
+                ? _buildResultPage()
+                : _buildScanPage(),
           ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: _state == _ScanState.result
-              ? _buildResultPage()
-              : _buildScanPage(),
-        ),
+        ],
       ),
       bottomNavigationBar: AppBottomNav(
         currentItem: AppNavItem.scan,

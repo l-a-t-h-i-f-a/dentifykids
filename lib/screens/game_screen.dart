@@ -3,6 +3,7 @@ import '../widgets/app_bottom_nav.dart';
 import 'food_sort_game_screen.dart';
 import 'home_screen.dart';
 import 'quiz_game_screen.dart';
+import 'teeth_clean_game_screen.dart';
 import 'scan_screen.dart';
 import 'settings_screen.dart';
 
@@ -13,17 +14,14 @@ class GameScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/bg.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: SafeArea(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/images/bg.png', fit: BoxFit.cover),
+          SafeArea(
           bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -63,10 +61,23 @@ class GameScreen extends StatelessWidget {
                         builder: (_) => const QuizGameScreen()),
                   ),
                 ),
+                const SizedBox(height: 16),
+                _GameCard(
+                  emoji: '🪥',
+                  title: 'Bersihkan Gigi!',
+                  subtitle: 'Ketuk semua noda sebelum\nwaktu habis!',
+                  gradientColors: [Color(0xFF00BFA5), Color(0xFF69F0AE)],
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const TeethCleanGameScreen()),
+                  ),
+                ),
               ],
             ),
           ),
-        ),
+          ),
+        ],
       ),
       bottomNavigationBar: AppBottomNav(
         currentItem: AppNavItem.game,

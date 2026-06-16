@@ -35,8 +35,6 @@ class MpuData {
 enum _BrushPos { up, down, neutral }
 
 class WifiService {
-  static const _esp32Ssid = 'dentifykids';
-  static const _esp32Ip = '192.168.4.1';
   static const _esp32Port = 80;
 
   static final WifiService _instance = WifiService._();
@@ -57,20 +55,68 @@ class WifiService {
 
   WifiDevice? get connectedDevice => _connectedDevice;
   bool get isConnected => _connectedDevice != null;
-  String get esp32Ssid => _esp32Ssid;
   Stream<int> get movementStream => _movementCtrl.stream;
   Stream<int> get wrongMovementStream => _wrongMovementCtrl.stream;
   Stream<bool> get connectionStream => _connectionCtrl.stream;
   Stream<MpuData> get mpuStream => _mpuCtrl.stream;
 
-  // Konek langsung ke ESP32 AP mode (192.168.4.1:80)
-  Future<bool> connectDirect() async {
-    const device = WifiDevice(
-      name: _esp32Ssid,
-      ip: _esp32Ip,
-      port: _esp32Port,
-    );
-    return connect(device);
+  // Scan subnet lokal untuk menemukan alat via endpoint /whoami
+  Future<WifiDevice?> discover() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLinkLocal: false,
+      );
+
+      String? subnet;
+      for (final iface in interfaces) {
+        for (final addr in iface.addresses) {
+          if (!addr.isLoopback) {
+            final parts = addr.address.split('.');
+            if (parts.length == 4) {
+              subnet = '${parts[0]}.${parts[1]}.${parts[2]}';
+              break;
+            }
+          }
+        }
+        if (subnet != null) break;
+      }
+
+      if (subnet == null) return null;
+
+      final completer = Completer<WifiDevice?>();
+      int remaining = 254;
+
+      for (int i = 1; i <= 254; i++) {
+        _probeIp('$subnet.$i').then((device) {
+          if (device != null && !completer.isCompleted) {
+            completer.complete(device);
+          }
+          remaining--;
+          if (remaining == 0 && !completer.isCompleted) {
+            completer.complete(null);
+          }
+        });
+      }
+
+      return completer.future;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<WifiDevice?> _probeIp(String ip) async {
+    try {
+      final res = await http
+          .get(Uri.parse('http://$ip:$_esp32Port/whoami'))
+          .timeout(const Duration(milliseconds: 600));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final name = (data['device'] as String?) ?? 'dentifykids';
+        return WifiDevice(name: name, ip: ip, port: _esp32Port);
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<bool> connect(WifiDevice device) async {
@@ -126,7 +172,6 @@ class WifiService {
   }
 
   void _detectMovement(MpuData data) {
-    // Threshold dari kode ESP32
     final _BrushPos pos;
     if (data.ay > 0.60) {
       pos = _BrushPos.up;
@@ -136,9 +181,7 @@ class WifiService {
       pos = _BrushPos.neutral;
     }
 
-    // Hitung satu gerakan setiap kali masuk posisi aktif (naik/turun)
     if (pos != _lastPos && pos != _BrushPos.neutral) {
-      // Gerakan salah: sumbu X lebih dominan dari Y (sikat ke kiri-kanan)
       if (data.ax.abs() > data.ay.abs() * 1.5) {
         _wrongMovementCtrl.add(1);
       } else {
@@ -155,11 +198,9 @@ class WifiService {
     _connectionCtrl.add(false);
   }
 
-  // Ambil foto dari ESP32-CAM — endpoint /capture mengembalikan JPEG
   Future<File> captureImage() async {
     if (_connectedDevice == null) throw Exception('Alat tidak terhubung');
 
-    // Hentikan polling agar tidak bentrok dengan request capture
     _capturing = true;
     _pollTimer?.cancel();
 
@@ -173,7 +214,6 @@ class WifiService {
         throw Exception('Gagal mengambil foto dari alat (${res.statusCode})');
       }
 
-      // ESP32 mengembalikan HTML jika belum ada foto (tombol belum ditekan)
       final contentType = res.headers['content-type'] ?? '';
       if (!contentType.contains('image')) {
         throw Exception('Belum ada foto. Tekan tombol pada alat terlebih dahulu.');

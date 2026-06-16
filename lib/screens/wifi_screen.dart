@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/wifi_service.dart';
 import '../services/preferences_service.dart';
@@ -18,20 +19,51 @@ class _WifiScreenState extends State<WifiScreen> {
   final _wifi = WifiService();
   final _prefs = PreferencesService();
   bool _connecting = false;
+  int _countdown = 0;
+  Timer? _countdownTimer;
 
-  Future<void> _connectDirect() async {
-    setState(() => _connecting = true);
-    final success = await _wifi.connectDirect();
-    if (success) {
-      await _prefs.setDevice(_wifi.esp32Ssid, '192.168.4.1');
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _scan() async {
+    setState(() {
+      _connecting = true;
+      _countdown = 10;
+    });
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      setState(() => _countdown--);
+      if (_countdown <= 0) t.cancel();
+    });
+
+    await Future.delayed(const Duration(seconds: 10));
+    _countdownTimer?.cancel();
+
+    final device = await _wifi.discover();
+    if (!mounted) return;
+
+    if (device == null) {
+      setState(() => _connecting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Alat tidak ditemukan. Pastikan hotspot aktif dan alat sudah terhubung.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
+
+    final success = await _wifi.connect(device);
+    if (success) await _prefs.setDevice(device.name, device.ip);
     if (!mounted) return;
     setState(() => _connecting = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          success ? 'Berhasil terhubung ke ESP32!' : 'Gagal terhubung. Pastikan HP sudah tersambung ke WiFi ${_wifi.esp32Ssid}.',
-        ),
+        content: Text(success ? 'Berhasil terhubung ke ${device.name}!' : 'Gagal terhubung. Coba lagi.'),
         backgroundColor: success ? Colors.green : Colors.red,
       ),
     );
@@ -147,12 +179,16 @@ class _WifiScreenState extends State<WifiScreen> {
                 _buildInstructionCard(scheme),
                 const SizedBox(height: 16),
                 if (_connecting)
-                  const Center(
+                  Center(
                     child: Column(
                       children: [
                         CircularProgressIndicator(),
-                        SizedBox(height: 8),
-                        Text('Menghubungkan ke ESP32...'),
+                        const SizedBox(height: 8),
+                        Text(
+                          _countdown > 0
+                              ? 'Menunggu alat siap... $_countdown detik'
+                              : 'Mencari alat...',
+                        ),
                       ],
                     ),
                   )
@@ -161,9 +197,9 @@ class _WifiScreenState extends State<WifiScreen> {
                     width: double.infinity,
                     height: 52,
                     child: FilledButton.icon(
-                      onPressed: _connectDirect,
-                      icon: const Icon(Icons.wifi),
-                      label: const Text('Hubungkan ke dentifykids'),
+                      onPressed: _scan,
+                      icon: const Icon(Icons.search),
+                      label: const Text('Cari Otomatis'),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -212,10 +248,10 @@ class _WifiScreenState extends State<WifiScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            _step('1', 'Buka Pengaturan WiFi di HP'),
-            _step('2', 'Sambungkan ke: dentifykids'),
-            _step('3', 'Password: 12345678'),
-            _step('4', 'Kembali ke sini lalu tekan Hubungkan'),
+            _step('1', 'Aktifkan Hotspot HP dengan nama: dentifykids'),
+            _step('2', 'Password hotspot: 12345678'),
+            _step('3', 'Nyalakan alat, tunggu sampai terhubung ke hotspot'),
+            _step('4', 'Tekan "Cari Otomatis" di bawah'),
           ],
         ),
       ),

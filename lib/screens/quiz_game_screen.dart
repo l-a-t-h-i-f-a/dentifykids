@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 
 class _Question {
   final String question;
@@ -82,16 +84,57 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
   bool _answered = false;
   bool _done = false;
 
+  VideoPlayerController? _ctrlBenar;
+  VideoPlayerController? _ctrlSalah;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSounds();
+  }
+
+  @override
+  void dispose() {
+    _ctrlBenar?.dispose();
+    _ctrlSalah?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSounds() async {
+    _ctrlBenar = VideoPlayerController.asset('assets/audios/benar.mp3');
+    _ctrlSalah = VideoPlayerController.asset('assets/audios/salah.mp3');
+    await Future.wait([
+      _ctrlBenar!.initialize(),
+      _ctrlSalah!.initialize(),
+    ]);
+  }
+
+  Future<void> _playSound(VideoPlayerController? ctrl, {int? stopAfterMs}) async {
+    if (ctrl == null || !ctrl.value.isInitialized) return;
+    await ctrl.seekTo(Duration.zero);
+    await ctrl.play();
+    if (stopAfterMs != null) {
+      Future.delayed(Duration(milliseconds: stopAfterMs), () => ctrl.pause());
+    }
+  }
+
   void _pick(int choice) {
     if (_answered) return;
     final correct = choice == _questions[_index].correct;
+    if (correct) {
+      HapticFeedback.mediumImpact();
+      _playSound(_ctrlBenar);
+    } else {
+      HapticFeedback.heavyImpact();
+      _playSound(_ctrlSalah, stopAfterMs: 2000);
+    }
     setState(() {
       _selected = choice;
       _answered = true;
       if (correct) _score++;
     });
 
-    Future.delayed(const Duration(milliseconds: 900), () {
+    Future.delayed(const Duration(milliseconds: 1800), () {
       if (!mounted) return;
       if (_index + 1 >= _questions.length) {
         setState(() => _done = true);
@@ -133,77 +176,138 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
   Widget _buildQuiz() {
     final q = _questions[_index];
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            // Progress bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: OrientationBuilder(
+        builder: (context, orientation) {
+          if (orientation == Orientation.landscape) {
+            return _buildQuizLandscape(q);
+          }
+          return _buildQuizPortrait(q);
+        },
+      ),
+    );
+  }
+
+  Widget _buildQuizPortrait(_Question q) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          _buildProgressRow(),
+          const SizedBox(height: 8),
+          _buildProgressBar(),
+          const SizedBox(height: 28),
+          _buildQuestionCard(q.question),
+          const SizedBox(height: 28),
+          GridView.count(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.6,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: List.generate(q.options.length, (i) {
+              return _buildOption(i, q.options[i], q.correct);
+            }),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuizLandscape(_Question q) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Column(
+        children: [
+          _buildProgressRow(),
+          const SizedBox(height: 6),
+          _buildProgressBar(),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('${_index + 1} / ${_questions.length}',
-                    style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                Row(children: [
-                  const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
-                  const SizedBox(width: 4),
-                  Text('$_score',
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
-                ]),
+                Expanded(
+                  flex: 45,
+                  child: _buildQuestionCard(q.question),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 55,
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 2.2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: List.generate(q.options.length, (i) {
+                      return _buildOption(i, q.options[i], q.correct);
+                    }),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: (_index + 1) / _questions.length,
-              backgroundColor: Colors.grey.shade200,
-              color: const Color(0xFF6C63FF),
-              minHeight: 6,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            const SizedBox(height: 28),
-            // Kartu soal
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6C63FF),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Text(
-                q.question,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  height: 1.4,
-                ),
-              ),
-            ),
-            const SizedBox(height: 28),
-            // Pilihan jawaban
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.6,
-                physics: const NeverScrollableScrollPhysics(),
-                children: List.generate(q.options.length, (i) {
-                  return _buildOption(i, q.options[i], q.correct);
-                }),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text('${_index + 1} / ${_questions.length}',
+            style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        Row(children: [
+          const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+          const SizedBox(width: 4),
+          Text('$_score',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ]),
+      ],
+    );
+  }
+
+  Widget _buildProgressBar() {
+    return LinearProgressIndicator(
+      value: (_index + 1) / _questions.length,
+      backgroundColor: Colors.grey.shade200,
+      color: const Color(0xFF6C63FF),
+      minHeight: 6,
+      borderRadius: BorderRadius.circular(4),
+    );
+  }
+
+  Widget _buildQuestionCard(String question) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      decoration: BoxDecoration(
+        color: const Color(0xFF6C63FF),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          question,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            height: 1.4,
+          ),
         ),
       ),
     );
@@ -211,23 +315,18 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
 
   Widget _buildOption(int i, String label, int correct) {
     Color bg = _optionColors[i];
-    Color border = Colors.transparent;
     Widget? badge;
 
-    if (_answered && _selected == i) {
+    if (_answered) {
       if (i == correct) {
-        border = Colors.white;
-        badge = const Icon(Icons.check_circle_rounded,
-            color: Colors.white, size: 22);
+        bg = const Color(0xFF27AE60);
+        badge = const Icon(Icons.check_circle_rounded, color: Colors.white, size: 22);
+      } else if (i == _selected) {
+        bg = const Color(0xFFE74C3C);
+        badge = const Icon(Icons.cancel_rounded, color: Colors.white, size: 22);
       } else {
         bg = Colors.grey.shade400;
-        badge = const Icon(Icons.cancel_rounded,
-            color: Colors.white, size: 22);
       }
-    } else if (_answered && i == correct) {
-      border = Colors.white;
-      badge = const Icon(Icons.check_circle_rounded,
-          color: Colors.white, size: 22);
     }
 
     return GestureDetector(
@@ -237,7 +336,6 @@ class _QuizGameScreenState extends State<QuizGameScreen> {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: border, width: 3),
           boxShadow: [
             BoxShadow(
               color: bg.withValues(alpha: 0.4),
